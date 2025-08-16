@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>X Layer Map - Create & Vote</title>
+    <style>
+        body { font-family: 'Poppins', sans-serif; background: linear-gradient(180deg, #1e1e2f 0%, #2a2a3d 100%); color: #ffffff; margin: 0; padding: 10px; min-height: 100vh; }
+        .container { width: 100%; max-width: 600px; margin: 0 auto; background: #2c2f48; box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; }
+        .sidebar { padding: 15px; background: #23263b; }
+        .chat-area { flex: 1; padding: 15px; }
+        .header { background: linear-gradient(90deg, #ff6f61 0%, #ff9f1c 100%); color: #fff; padding: 12px 15px; font-size: 1.3em; font-weight: 600; border-radius: 15px; margin-bottom: 15px; text-align: center; }
+        .connect-section { margin-bottom: 15px; }
+        .connect-section button { padding: 10px; background: #00BFA5; color: #121212; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1em; width: 100%; text-align: left; transition: background 0.3s ease, transform 0.2s ease; }
+        .connect-section button:hover { background: #009688; transform: translateY(-2px); }
+        .connect-section button.loading { opacity: 0.7; pointer-events: none; }
+        .connect-section .wallet-info { color: #00BFA5; font-weight: 600; word-break: break-all; margin-top: 10px; }
+        .button-group { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 15px; }
+        .button-group button { padding: 10px; background: #00BFA5; color: #121212; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 0.9em; transition: background 0.3s, transform 0.2s; }
+        .button-group button:hover { background: #009688; transform: translateY(-2px); }
+        .user-item { padding: 10px; background: #2c2f48; border-radius: 10px; margin-bottom: 10px; transition: background 0.3s; display: flex; justify-content: space-between; align-items: center; }
+        .user-item:hover { background: #373b5c; }
+        .user-item .group-name { font-weight: 600; font-size: 1em; }
+        .user-item .votes { font-size: 0.8em; color: #a5b4fc; }
+        .user-item .action-buttons { display: flex; gap: 5px; }
+        .user-item button { padding: 5px 10px; background: #00BFA5; color: #121212; border: none; border-radius: 5px; font-size: 0.8em; cursor: pointer; transition: background 0.3s; }
+        .user-item button:hover { background: #009688; }
+        .user-item button:disabled { background: #555; cursor: not-allowed; }
+        .chat-header { padding: 10px; background: #373b5c; border-radius: 10px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px; }
+        .chat-header .info { display: flex; align-items: center; gap: 8px; }
+        .chat-header .name { font-weight: 600; color: #fff; background: #ff6f61; padding: 6px 12px; border-radius: 15px; font-size: 0.9em; }
+        .chat-header .refresh-btn { padding: 6px 12px; background: #00BFA5; color: #121212; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.3s; }
+        .chat-header .refresh-btn:hover { background: #009688; }
+        .content-area { padding: 10px; background: #2c2f48; border-radius: 10px; display: none; }
+        .canvas-container { display: grid; grid-template-columns: repeat(24, 1fr); gap: 1px; width: 100%; max-width: 80%; aspect-ratio: 1; background: #373b5c; padding: 5px; margin: 0 auto; }
+        .nft-image { width: 500px; height: 500px; margin: 20px auto; display: block; border: none; }
+        .pixel { width: 100%; height: 100%; background: #ffffff; border: none; cursor: crosshair; transition: transform 0.1s; }
+        .pixel:hover { transform: scale(1.1); }
+        .color-picker { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; margin: 15px auto; width: 100%; max-width: 300px; }
+        .color-option { width: 100%; height: 30px; border: 2px solid transparent; border-radius: 5px; cursor: pointer; transition: border 0.2s; }
+        .color-option:hover { border-color: #00BFA5; }
+        .color-option.selected { border-color: #ff6f61; }
+        .vote-input, .query-input { margin: 15px 0; padding: 10px; width: 100%; max-width: 200px; background: #373b5c; border: none; border-radius: 10px; color: #fff; font-size: 0.9em; outline: none; }
+        .vote-input:focus, .query-input:focus { border: 2px solid #00BFA5; }
+        .action-buttons { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 15px; justify-content: center; }
+        .action-buttons button { padding: 10px 20px; background: #00BFA5; color: #121212; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; transition: background 0.3s, transform 0.2s; }
+        .action-buttons button:hover { background: #009688; transform: translateY(-2px); }
+        .status { margin-top: 10px; font-size: 0.9em; color: #00BFA5; text-align: center; }
+        .download-button { display: block; margin: 10px auto; padding: 8px 16px; background: #00BFA5; color: #121212; border: none; border-radius: 6px; cursor: pointer; font-weight: 600; text-align: center; transition: background 0.3s, transform 0.2s; }
+        .download-button:hover { background: #009688; transform: translateY(-2px); }
+        .active { display: block; }
+        @media (max-width: 400px) {
+            .button-group { grid-template-columns: 1fr; }
+            .canvas-container { max-width: 80%; }
+            .color-picker { grid-template-columns: repeat(4, 1fr); }
+            .pixel { min-width: 8px; min-height: 8px; }
+            .user-item { flex-direction: column; align-items: flex-start; gap: 5px; }
+            .action-buttons { justify-content: flex-start; }
+        }
+    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <div class="sidebar">
+            <div class="header">X Layer Map</div>
+            <div class="connect-section">
+                <button id="connectWalletButton" class="button">Connect Wallet</button>
+                <p>Wallet: <span id="walletAddress" class="wallet-info">Not connected</span></p>
+                <div id="networkStatus" class="status">Click to connect...</div>
+            </div>
+            <div class="button-group">
+                <button id="createNFTButton">Create NFT</button>
+                <button id="voteButton">Vote</button>
+                <button id="myNFTsButton">My NFTs</button>
+                <button id="top100Button">Top 100</button>
+            </div>
+        </div>
+        <div class="chat-area">
+            <div class="chat-header">
+                <div class="info">
+                    <div class="name" id="pageTitle">Welcome</div>
+                </div>
+                <button class="refresh-btn" id="refreshButton" onclick="refreshContent()">Refresh</button>
+            </div>
+            <div class="content-area" id="createPage">
+                <div class="canvas-container" id="pixelCanvas"></div>
+                <div class="color-picker" id="colorPicker"></div>
+                <div class="action-buttons">
+                    <button onclick="createNFT()">Create</button>
+                    <button onclick="clearCanvas()">Clear</button>
+                    <button onclick="fillAll()">Fill All</button>
+                </div>
+                <div class="status" id="createStatus">Gas Limit recommendation: 2000000</div>
+            </div>
+            <div class="content-area" id="votePage">
+                <input type="number" id="voteNFTId" class="vote-input" placeholder="Enter NFT ID" min="0">
+                <div class="action-buttons">
+                    <button onclick="voteNFTFun()">Vote</button>
+                    <button onclick="checkVoteStatus()">Check Vote Status</button>
+                </div>
+                <div class="status" id="voteStatus"></div>
+            </div>
+            <div class="content-area" id="myNFTsPage">
+                <input type="number" id="queryNFTId" class="query-input" placeholder="Query NFT ID" min="0">
+                <div class="action-buttons" style="margin-bottom: 20px;">
+                    <button onclick="queryNFT()">Query</button>
+                </div>
+                <div id="nftDetails"></div>
+            </div>
+            <div class="content-area" id="top100Page">
+                <div id="top100Details"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/web3@1.7.0/dist/web3.min.js"></script>
+    <script>
+        let web3, accounts, contract;
+        const contractAddress = "0xa16e4f8f5413524065a64875cb101763237d0b2D";
+        const contractABI = [
+            {"inputs":[],"stateMutability":"nonpayable","type":"constructor"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"approved","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Approval","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"owner","type":"address"},{"indexed":true,"internalType":"address","name":"operator","type":"address"},{"indexed":false,"internalType":"bool","name":"approved","type":"bool"}],"name":"ApprovalForAll","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":true,"internalType":"address","name":"creator","type":"address"}],"name":"NFTMinted","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"address","name":"from","type":"address"},{"indexed":true,"internalType":"address","name":"to","type":"address"},{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"Transfer","type":"event"},
+            {"anonymous":false,"inputs":[{"indexed":true,"internalType":"uint256","name":"tokenId","type":"uint256"},{"indexed":true,"internalType":"address","name":"voter","type":"address"}],"name":"Voted","type":"event"},
+            {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"balanceOf","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"createdAt","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getApproved","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"owner","type":"address"}],"name":"getOwnedNFTs","outputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"getPixelArtCompact","outputs":[{"internalType":"uint8[576]","name":"","type":"uint8[576]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"page","type":"uint256"}],"name":"getTopNFTs","outputs":[{"internalType":"uint256[]","name":"tokenIds","type":"uint256[]"},{"internalType":"uint256[]","name":"votes","type":"uint256[]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"voter","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"hasVotedFor","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"hasVoted","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"owner","type":"address"},{"internalType":"address","name":"operator","type":"address"}],"name":"isApprovedForAll","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint8[24][24]","name":"colors","type":"uint8[24][24]"}],"name":"mintPixelNFT","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[],"name":"name","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[{"internalType":"address","name":"","type":"address"},{"internalType":"uint256","name":"","type":"uint256"}],"name":"ownerToTokenIds","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"ownerOf","outputs":[{"internalType":"address","name":"","type":"address"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"pixelArts","outputs":[{"internalType":"uint8[576]","name":"","type":"uint8[576]"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"bytes","name":"data","type":"bytes"}],"name":"safeTransferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"bool","name":"approved","type":"bool"}],"name":"setApprovalForAll","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"standardColors","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"bytes4","name":"interfaceId","type":"bytes4"}],"name":"supportsInterface","outputs":[{"internalType":"bool","name":"","type":"bool"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[],"name":"symbol","outputs":[{"internalType":"string","name":"","type":"string"}],"stateMutability":"pure","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"index","type":"uint256"}],"name":"tokenByIndex","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[],"name":"totalSupply","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"from","type":"address"},{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"transferFrom","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"vote","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"uint256","name":"","type":"uint256"}],"name":"voteCounts","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},
+            {"inputs":[{"internalType":"address","name":"to","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"}],"name":"approve","outputs":[],"stateMutability":"nonpayable","type":"function"},
+            {"inputs":[{"internalType":"address","name":"operator","type":"address"},{"internalType":"address","name":"from","type":"address"},{"internalType":"uint256","name":"tokenId","type":"uint256"},{"internalType":"bytes","name":"data","type":"bytes"}],"name":"onERC721Received","outputs":[{"internalType":"bytes4","name":"","type":"bytes4"}],"stateMutability":"pure","type":"function"}
+        ];
+        const xLayer = {
+            chainId: 196,
+            name: 'X Layer mainnet',
+            explorerUrl: 'https://www.okx.com/web3/explorer/xlayer',
+            rpcUrl: 'https://rpc.xlayer.tech'
+        };
+        const colors = [
+            0xFFFFFF, 0x000000, 0xFF0000, 0xFFA500, 0xFFFF00,
+            0x008000, 0x00FF00, 0xADFF2F, 0x9ACD32, 0x228B22,
+            0x006400, 0x00FFFF, 0x20B2AA, 0x40E0D0, 0x0000FF,
+            0x4169E1, 0x1E90FF, 0x4682B4, 0x6A5ACD, 0x000080,
+            0x800080, 0x8A2BE2, 0x9370DB, 0xBA55D3, 0xFF00FF,
+            0xC71585, 0xFF1493, 0xFFB6C1, 0xFA8072, 0xFF4500,
+            0xDAA520, 0xB8860B, 0x808000, 0x6B8E23, 0xA0522D,
+            0x8B4513, 0xD2B48C, 0xF4A460, 0xDEB887, 0xCD853F
+        ];
+
+        let currentPage = 'welcome';
+        let canvas = [];
+        let selectedColorIndex = 0;
+        let isDrawing = false;
+
+        async function connectWallet() {
+            const status = document.getElementById('networkStatus');
+            const connectButton = document.getElementById('connectWalletButton');
+            try {
+                if (!window.ethereum) {
+                    status.innerHTML = 'No wallet detected. Please install <a href="https://metamask.io" target="_blank">MetaMask</a>.';
+                    throw new Error("No wallet detected");
+                }
+                status.innerText = "Connecting...";
+                connectButton.classList.add('loading');
+                web3 = new Web3(window.ethereum);
+                accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+                if (!accounts.length) {
+                    throw new Error("Please unlock your wallet or connect it.");
+                }
+                const chainId = await web3.eth.getChainId();
+                if (chainId !== 196) {
+                    try {
+                        await window.ethereum.request({
+                            method: 'wallet_switchEthereumChain',
+                            params: [{ chainId: '0xc4' }]
+                        });
+                    } catch (switchError) {
+                        if (switchError.code === 4902) {
+                            await window.ethereum.request({
+                                method: 'wallet_addEthereumChain',
+                                params: [{
+                                    chainId: '0xc4',
+                                    chainName: 'X Layer mainnet',
+                                    nativeCurrency: { name: 'OKB', symbol: 'OKB', decimals: 18 },
+                                    rpcUrls: ['https://rpc.xlayer.tech'],
+                                    blockExplorerUrls: ['https://www.okx.com/web3/explorer/xlayer']
+                                }]
+                            });
+                        } else {
+                            throw switchError;
+                        }
+                    }
+                }
+                document.getElementById('walletAddress').innerText = `${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`;
+                connectButton.textContent = `Connected: ${accounts[0].slice(0, 6)}...${accounts[0].slice(-4)}`;
+                contract = new web3.eth.Contract(contractABI, contractAddress);
+                status.innerText = "Connected to X Layer";
+                initializeCanvas();
+                initializeColorPicker();
+                setupEventListeners();
+                loadMyNFTs();
+                loadTop100NFTs();
+            } catch (error) {
+                console.error(error);
+                status.innerText = "Failed to connect: " + error.message;
+            } finally {
+                connectButton.classList.remove('loading');
+            }
+        }
+
+        function switchPage(page) {
+            document.querySelectorAll('.content-area').forEach(p => p.classList.remove('active'));
+            document.getElementById(page + 'Page').classList.add('active');
+            currentPage = page;
+            document.getElementById('pageTitle').innerText = page === 'create' ? 'Create NFT' : page === 'vote' ? 'Vote' : page === 'top100' ? 'Top 100' : 'My NFTs';
+            document.getElementById('refreshButton').onclick = () => refreshContent(page);
+            if (page === 'myNFTs') loadMyNFTs();
+            else if (page === 'top100') loadTop100NFTs();
+        }
+
+        function initializeCanvas() {
+            const canvasDiv = document.getElementById('pixelCanvas');
+            canvas = Array(24).fill().map(() => Array(24).fill(0));
+            canvasDiv.innerHTML = '';
+            for (let i = 0; i < 24; i++) {
+                for (let j = 0; j < 24; j++) {
+                    const pixel = document.createElement('div');
+                    pixel.className = 'pixel';
+                    pixel.dataset.row = i;
+                    pixel.dataset.col = j;
+                    pixel.addEventListener('mousedown', (e) => { isDrawing = true; paintPixel(e); });
+                    pixel.addEventListener('mousemove', (e) => { if (isDrawing) paintPixel(e); });
+                    pixel.addEventListener('mouseup', () => isDrawing = false);
+                    pixel.addEventListener('mouseleave', () => isDrawing = false);
+                    canvasDiv.appendChild(pixel);
+                }
+            }
+        }
+
+        function paintPixel(e) {
+            const pixel = e.target;
+            const row = parseInt(pixel.dataset.row);
+            const col = parseInt(pixel.dataset.col);
+            canvas[row][col] = selectedColorIndex;
+            pixel.style.background = `#${colors[selectedColorIndex].toString(16).padStart(6, '0')}`;
+        }
+
+        function initializeColorPicker() {
+            const colorPicker = document.getElementById('colorPicker');
+            colorPicker.innerHTML = '';
+            colors.forEach((colorValue, i) => {
+                const color = document.createElement('div');
+                color.className = 'color-option';
+                color.dataset.index = i;
+                color.style.background = `#${colorValue.toString(16).padStart(6, '0')}`;
+                color.addEventListener('click', () => {
+                    document.querySelectorAll('.color-option').forEach(c => c.classList.remove('selected'));
+                    color.classList.add('selected');
+                    selectedColorIndex = i;
+                });
+                colorPicker.appendChild(color);
+            });
+            colorPicker.children[0].classList.add('selected');
+        }
+
+        async function createNFT() {
+            if (!contract || !accounts) {
+                document.getElementById('createStatus').innerText = "Please connect your wallet first!";
+                return;
+            }
+            if (canvas.every(row => row.every(index => index === 0))) {
+                document.getElementById('createStatus').innerText = "Draw something first!";
+                return;
+            }
+            try {
+                const section = document.getElementById('createPage');
+                section.classList.add('loading');
+                document.getElementById('createStatus').innerText = "Creating NFT...";
+                const gasPrice = await web3.eth.getGasPrice();
+                const adjustedGasPrice = web3.utils.toBN(gasPrice).mul(web3.utils.toBN(15)).div(web3.utils.toBN(10));
+                const tx = await contract.methods.mintPixelNFT(canvas).send({
+                    from: accounts[0],
+                    gas: '2000000',
+                    gasPrice: adjustedGasPrice
+                });
+                const tokenId = tx.events.NFTMinted.returnValues.tokenId;
+                document.getElementById('createStatus').innerHTML = `NFT #${tokenId} created! <a href="${xLayer.explorerUrl}/token/${contractAddress}?a=${tokenId}" target="_blank">View on X Layer</a>`;
+                initializeCanvas();
+                loadMyNFTs();
+            } catch (error) {
+                console.error(error);
+                document.getElementById('createStatus').innerText = "Failed to create NFT: " + (error.message.includes('revert') ? error.message.split('revert')[1]?.trim() || 'Unknown reason' : error.message);
+            } finally {
+                section.classList.remove('loading');
+            }
+        }
+
+        function clearCanvas() {
+            initializeCanvas();
+            document.getElementById('createStatus').innerText = "";
+        }
+
+        function fillAll() {
+            for (let i = 0; i < 24; i++) {
+                for (let j = 0; j < 24; j++) {
+                    canvas[i][j] = selectedColorIndex;
+                    const pixel = document.querySelector(`.pixel[data-row="${i}"][data-col="${j}"]`);
+                    pixel.style.background = `#${colors[selectedColorIndex].toString(16).padStart(6, '0')}`;
+                }
+            }
+            document.getElementById('createStatus').innerText = "Canvas filled!";
+        }
+
+        async function voteNFTFun() {
+            if (!contract || !accounts) {
+                document.getElementById('voteStatus').innerText = "Please connect your wallet first!";
+                return;
+            }
+            const voteInput = document.getElementById('voteNFTId');
+            const rawValue = voteInput.value.trim();
+            const nftId = parseInt(rawValue);
+            if (rawValue === "") {
+                document.getElementById('voteStatus').innerText = "Please enter an NFT ID.";
+                return;
+            }
+            try {
+                const section = document.getElementById('votePage');
+                section.classList.add('loading');
+                document.getElementById('voteStatus').innerText = "Sending vote transaction...";
+                const gasPrice = await web3.eth.getGasPrice();
+                const adjustedGasPrice = web3.utils.toBN(gasPrice).mul(web3.utils.toBN(15)).div(web3.utils.toBN(10));
+                await contract.methods.vote(nftId).send({
+                    from: accounts[0],
+                    gas: '100000',
+                    gasPrice: adjustedGasPrice
+                });
+                document.getElementById('voteStatus').innerText = `Voted successfully for NFT #${nftId}!`;
+                voteInput.value = "";
+                loadTop100NFTs();
+            } catch (error) {
+                console.error(error);
+                document.getElementById('voteStatus').innerText = "Failed to vote: " + (error.message.includes('revert') ? error.message.split('revert')[1]?.trim() || 'Unknown reason' : error.message);
+            } finally {
+                section.classList.remove('loading');
+            }
+        }
+
+        async function checkVoteStatus() {
+            if (!contract || !accounts) {
+                document.getElementById('voteStatus').innerText = "Please connect your wallet first!";
+                return;
+            }
+            const rawValue = document.getElementById('voteNFTId').value.trim();
+            const nftId = parseInt(rawValue);
+            if (rawValue === "") {
+                document.getElementById('voteStatus').innerText = "Please enter an NFT ID.";
+                return;
+            }
+            try {
+                const hasVoted = await contract.methods.hasVotedFor(accounts[0], nftId).call();
+                document.getElementById('voteStatus').innerText = hasVoted ? `You have already voted for NFT #${nftId}.` : `You have not voted for NFT #${nftId} yet.`;
+            } catch (error) {
+                console.error(error);
+                document.getElementById('voteStatus').innerText = "Failed to check vote status: " + error.message;
+            }
+        }
+
+        async function selectNFT(nftId) {
+            const detailsDiv = document.getElementById('nftDetails');
+            try {
+                const tokenId = Number(nftId);
+                if (isNaN(tokenId)) throw new Error("Invalid token ID");
+                const pixels = await contract.methods.getPixelArtCompact(tokenId).call();
+                const pixelSize = 500 / 24;
+                let svgContent = '<svg class="nft-image" width="500" height="500" xmlns="http://www.w3.org/2000/svg" download="nft_' + tokenId + '.svg">';
+                for (let i = 0; i < 24; i++) {
+                    for (let j = 0; j < 24; j++) {
+                        const colorIndex = pixels[i * 24 + j];
+                        const colorHex = colors[colorIndex].toString(16).padStart(6, '0');
+                        const x = Math.floor(j * pixelSize);
+                        const y = Math.floor(i * pixelSize);
+                        const width = Math.ceil((j + 1) * pixelSize) - x;
+                        const height = Math.ceil((i + 1) * pixelSize) - y;
+                        svgContent += `<rect x="${x}" y="${y}" width="${width}" height="${height}" fill="#${colorHex}" stroke="none"/>`;
+                    }
+                }
+                svgContent += '</svg>';
+                detailsDiv.innerHTML = svgContent + `<button class="download-button" onclick="downloadNFTImage(${tokenId})">Download Image</button>`;
+            } catch (error) {
+                console.error(error);
+                detailsDiv.innerHTML = '<div class="status">Failed to load NFT: ' + error.message + '</div>';
+            }
+        }
+
+        function downloadNFTImage(tokenId) {
+            const svgElement = document.querySelector('.nft-image');
+            const svgData = new XMLSerializer().serializeToString(svgElement);
+            const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
+            const svgUrl = URL.createObjectURL(svgBlob);
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                canvas.width = 500;
+                canvas.height = 500;
+                const ctx = canvas.getContext('2d');
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(img, 0, 0, 500, 500);
+                const pngUrl = canvas.toDataURL('image/png');
+                const downloadLink = document.createElement('a');
+                downloadLink.href = pngUrl;
+                downloadLink.download = `nft_${tokenId}.png`;
+                document.body.appendChild(downloadLink);
+                downloadLink.click();
+                document.body.removeChild(downloadLink);
+                URL.revokeObjectURL(svgUrl);
+            };
+            img.src = svgUrl;
+        }
+
+        async function queryNFT() {
+            const nftId = document.getElementById('queryNFTId').value;
+            if (!nftId || isNaN(nftId)) {
+                document.getElementById('nftDetails').innerHTML = '<div class="status">Please enter a valid NFT ID!</div>';
+                return;
+            }
+            await selectNFT(nftId);
+        }
+
+        async function loadMyNFTs() {
+            if (!contract || !accounts) {
+                document.getElementById('nftDetails').innerHTML = '<div class="status">Please connect your wallet first!</div>';
+                return;
+            }
+            try {
+                const section = document.getElementById('myNFTsPage');
+                section.classList.add('loading');
+                document.getElementById('nftDetails').innerHTML = '<div class="status">Fetching your NFTs...</div>';
+                const tokenIds = await contract.methods.getOwnedNFTs(accounts[0]).call();
+                const detailsDiv = document.getElementById('nftDetails');
+                detailsDiv.innerHTML = tokenIds.length === 0 ? '<div class="status">No NFTs created yet!</div>' : tokenIds.map(id => `
+                    <li class="user-item">
+                        <div class="group-name">NFT #${id}</div>
+                        <div class="action-buttons">
+                            <button onclick="selectNFT(${id})">View</button>
+                        </div>
+                    </li>
+                `).join('');
+            } catch (error) {
+                console.error(error);
+                document.getElementById('nftDetails').innerHTML = '<div class="status">Failed to load NFTs: ' + error.message + '</div>';
+            } finally {
+                document.getElementById('myNFTsPage').classList.remove('loading');
+            }
+        }
+
+        async function loadTop100NFTs() {
+            if (!contract || !accounts) {
+                document.getElementById('top100Details').innerHTML = '<div class="status">Please connect your wallet first!</div>';
+                return;
+            }
+            try {
+                const section = document.getElementById('top100Page');
+                section.classList.add('loading');
+                document.getElementById('top100Details').innerHTML = '<div class="status">Fetching Top 100 NFTs...</div>';
+                const result = await contract.methods.getTopNFTs(0).call();
+                const tokenIds = result.tokenIds;
+                const votes = result.votes;
+                const detailsDiv = document.getElementById('top100Details');
+                let html = '';
+                for (let i = 0; i < tokenIds.length; i++) {
+                    const id = tokenIds[i];
+                    const voteCount = votes[i];
+                    const hasVoted = await contract.methods.hasVotedFor(accounts[0], id).call();
+                    html += `
+                        <li class="user-item">
+                            <div class="group-name">NFT #${id}</div>
+                            <div class="votes">Votes: ${voteCount}</div>
+                            <div class="action-buttons">
+                                <button onclick="selectNFT(${id})">View</button>
+                                <button onclick="voteNFT(${id})" ${hasVoted ? 'disabled' : ''}>Vote</button>
+                            </div>
+                        </li>
+                    `;
+                }
+                detailsDiv.innerHTML = html || '<div class="status">No NFTs with votes found.</div>';
+            } catch (error) {
+                console.error(error);
+                document.getElementById('top100Details').innerHTML = '<div class="status">Failed to load Top 100: ' + error.message + '</div>';
+            } finally {
+                document.getElementById('top100Page').classList.remove('loading');
+            }
+        }
+
+        async function voteNFT(id) {
+            if (!contract || !accounts) {
+                document.getElementById('top100Details').innerHTML = '<div class="status">Please connect your wallet first!</div>';
+                return;
+            }
+            try {
+                const section = document.getElementById('top100Page');
+                section.classList.add('loading');
+                document.getElementById('top100Details').innerHTML += '<div class="status">Sending vote transaction...</div>';
+                const gasPrice = await web3.eth.getGasPrice();
+                const adjustedGasPrice = web3.utils.toBN(gasPrice).mul(web3.utils.toBN(15)).div(web3.utils.toBN(10));
+                await contract.methods.vote(id).send({
+                    from: accounts[0],
+                    gas: '100000',
+                    gasPrice: adjustedGasPrice
+                });
+                loadTop100NFTs();
+            } catch (error) {
+                console.error(error);
+                document.getElementById('top100Details').innerHTML += '<div class="status">Vote failed: ' + (error.message.includes('revert') ? error.message.split('revert')[1]?.trim() || 'Unknown reason' : error.message) + '</div>';
+            } finally {
+                document.getElementById('top100Page').classList.remove('loading');
+            }
+        }
+
+        async function refreshContent(page) {
+            if (!contract || !accounts) {
+                const statusDiv = document.getElementById(page === 'myNFTs' ? 'nftDetails' : 'top100Details');
+                if (statusDiv) statusDiv.innerHTML = '<div class="status">Please connect your wallet first!</div>';
+                return;
+            }
+            const refreshButton = document.getElementById('refreshButton');
+            refreshButton.classList.add('loading');
+            try {
+                if (page === 'myNFTs') await loadMyNFTs();
+                else if (page === 'top100') await loadTop100NFTs();
+                else if (page === 'create') initializeCanvas();
+                else if (page === 'vote') document.getElementById('voteNFTId').value = '';
+            } catch (error) {
+                console.error(error);
+                const statusDiv = document.getElementById(page === 'myNFTs' ? 'nftDetails' : 'top100Details');
+                if (statusDiv) statusDiv.innerHTML = '<div class="status">Failed to refresh: ' + error.message + '</div>';
+            } finally {
+                refreshButton.classList.remove('loading');
+            }
+        }
+
+        function setupEventListeners() {
+            if (!contract) return;
+            contract.events.NFTMinted({ fromBlock: 'latest' }, () => loadMyNFTs());
+            contract.events.Voted({ fromBlock: 'latest' }, () => loadTop100NFTs());
+        }
+
+        document.getElementById('connectWalletButton').addEventListener('click', connectWallet);
+        document.getElementById('createNFTButton').addEventListener('click', () => switchPage('create'));
+        document.getElementById('voteButton').addEventListener('click', () => switchPage('vote'));
+        document.getElementById('myNFTsButton').addEventListener('click', () => switchPage('myNFTs'));
+        document.getElementById('top100Button').addEventListener('click', () => switchPage('top100'));
+
+        window.addEventListener('load', () => {
+            if (!window.location.protocol.startsWith('http')) {
+                document.getElementById('networkStatus').innerHTML = 'Please run this page via a local server (e.g., "npx serve") to connect MetaMask.';
+            } else if (!window.ethereum) {
+                document.getElementById('networkStatus').innerHTML = 'No wallet detected. Please install <a href="https://metamask.io">MetaMask</a>.';
+            }
+        });
+
+        window.ethereum?.on('chainChanged', (chainId) => {
+            if (parseInt(chainId, 16) !== 196) {
+                document.getElementById('networkStatus').innerText = "Wrong network. Reconnect to X Layer.";
+                document.getElementById('walletAddress').innerText = "Not connected";
+                web3 = null; contract = null; accounts = null;
+                document.getElementById('connectWalletButton').textContent = 'Connect Wallet';
+            } else {
+                connectWallet();
+            }
+        });
+
+        window.ethereum?.on('accountsChanged', (newAccounts) => {
+            if (newAccounts.length) {
+                connectWallet();
+            } else {
+                document.getElementById('networkStatus').innerText = "Wallet disconnected. Reconnect.";
+                document.getElementById('walletAddress').innerText = "Not connected";
+                web3 = null; contract = null; accounts = null;
+                document.getElementById('connectWalletButton').textContent = 'Connect Wallet';
+            }
+        });
+    </script>
+</body>
+</html>
